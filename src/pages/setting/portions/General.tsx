@@ -1,77 +1,73 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
-import * as Yup from "yup";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import Loader from "../../../components/Loader";
+import { toast } from "react-toastify";
+import { fetchsettings, updatesettings } from "../../../queries/setting";
 
-const validationSchema = Yup.object({
-  riderTimeout: Yup.number().required("Required"),
-  riderRadius: Yup.number().required("Required"),
-  apiKey: Yup.string().required("Required"),
-  costPerKmFixed: Yup.string().required("Required"),
-  costPerKmVariable: Yup.string(),
-  costPerMinFixed: Yup.string().required("Required"),
-  costPerMinVariable: Yup.string(),
-});
+const General: React.FC = () => {
+  const [initialValues, setInitialValues] = useState<Record<string, string>>({});
 
-const General  : React.FC = () => {
+  const { data: rawSettings, isLoading, error } = useQuery({
+    queryKey: ["settings"],
+    queryFn: fetchsettings,
+  });
+
+  useEffect(() => {
+    if (rawSettings && rawSettings) {
+      const settings = rawSettings.reduce((acc: Record<string, string>, setting: { name: string; value: string }) => {
+        acc[setting.name] = setting.value;
+        return acc;
+      }, {});
+      setInitialValues(settings);
+    }
+  }, [rawSettings]);
+
+  const { mutate: updateSettings, isPending: isUpdating } = useMutation({
+    mutationFn: (values: Record<string, string>) => updatesettings(values),
+  });
+
+  const handleSubmit = async (values: Record<string, string>) => {
+    try {
+      await updateSettings(values);
+      toast.success("Settings updated successfully!");
+    } catch (err: any) {
+      toast.error(`Error updating settings: ${err.message}`);
+    }
+  };
+
+  if (isLoading) return <Loader />;
+  if (error) return <div>Error loading settings</div>;
+
+  console.log("Initial Values:", initialValues); // Debugging
+
   return (
     <Formik
-      initialValues={{
-        riderTimeout: "",
-        riderRadius: "",
-        apiKey: "",
-        costPerKmFixed: "",
-        costPerKmVariable: "",
-        costPerMinFixed: "",
-        costPerMinVariable: "",
-      }}
-      validationSchema={validationSchema}
-      onSubmit={(values) => {
-        console.log(JSON.stringify(values, null, 2));
-      }}
+      initialValues={initialValues}
+      enableReinitialize
+      onSubmit={handleSubmit}
     >
       {({ handleSubmit }) => (
-        <Form onSubmit={handleSubmit} className="m-6 max-w-lg bg-gray-100 rounded-lg">
-          <div className="mb-4">
-            <label >Rider accept timeout (seconds)</label>
-            <Field name="riderTimeout" type="number" className="block w-full p-2 border rounded bg-white" />
-            <ErrorMessage name="riderTimeout" component="div" className="text-red-500" />
-          </div>
-          
-          <div className="mb-4">
-            <label >Rider search radius (Km)</label>
-            <Field name="riderRadius" type="number" className="block w-full p-2 border rounded bg-white" />
-            <ErrorMessage name="riderRadius" component="div" className="text-red-500" />
-          </div>
-          
-          <div className="mb-4">
-            <label >Payment API key</label>
-            <Field name="apiKey" type="text" className="block w-full p-2 border rounded bg-white" />
-            <ErrorMessage name="apiKey" component="div" className="text-red-500" />
-          </div>
-          
-          <div className="mb-4">
-            <label >Cost / km (Fixed)</label>
-            <Field name="costPerKmFixed" type="text" className="block w-full p-2 border rounded bg-white" />
-            <ErrorMessage name="costPerKmFixed" component="div" className="text-red-500" />
-          </div>
-          
-          <div className="mb-4">
-            <label >Cost / km (Variable)</label>
-            <Field name="costPerKmVariable" type="text" className="block w-full p-2 border rounded bg-white" placeholder="Enter fee (₦)" />
-          </div>
-          
-          <div className="mb-4">
-            <label >Cost / min (Fixed)</label>
-            <Field name="costPerMinFixed" type="text" className="block w-full p-2 border rounded bg-white" />
-            <ErrorMessage name="costPerMinFixed" component="div" className="text-red-500" />
-          </div>
-          
-          <div className="mb-4">
-            <label >Cost / min (Variable)</label>
-            <Field name="costPerMinVariable" type="text" className="block w-full p-2 border rounded bg-white" placeholder="Enter fee (₦)" />
-          </div>
-          
-          <button type="submit" className=" bg-purple-600 text-white p-4 rounded mt-2 w-[200px]">Save</button>
+        <Form onSubmit={handleSubmit} className="m-6 max-w-xl bg-gray-100 p-6 rounded-lg">
+          {Object.entries(initialValues).map(([key], index) => (
+            <div className="mb-4" key={index}>
+              <label className="block mb-1 capitalize">{key.replace(/_/g, " ")}</label>
+              <Field
+                name={key}
+                type="text"
+                className="block w-full p-2 border rounded bg-white"
+              />
+              <ErrorMessage name={key} component="div" className="text-red-500" />
+            </div>
+          ))}
+
+          <button
+            type="submit"
+            className="bg-purple-600 text-white p-4 rounded mt-2 w-[200px]"
+            disabled={isUpdating}
+          >
+            {isUpdating ? "Saving..." : "Save"}
+          </button>
         </Form>
       )}
     </Formik>

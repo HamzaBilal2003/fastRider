@@ -1,24 +1,10 @@
 import React from 'react'
 import { dummyImage, formatCreatedAt } from '../../../constants/help';
+import { ReviewData } from '../../../queries/report/report';
+import { API_DOMAIN_Img } from '../../../apiConfig';
 
 interface props {
-    displayData: {
-        id?: number;
-        rider: {
-            id?: number;
-            username: string;
-            profile_image: string | null;
-        };
-        user: {
-            id?: number;
-            username: string;
-            profile_image: string | null;
-        };
-        orderId: string;
-        created_at: string;
-        comment?: string;
-        rating: number;
-    };
+    displayData: ReviewData;
 }
 
 
@@ -42,24 +28,24 @@ const RatingRow: React.FC<props> = ({ displayData }) => {
             </td>
             <td className="p-2 py-4">
                 <div className='flex items-center gap-2'>
-                    <img src={displayData.rider.profile_image || dummyImage()} alt="" className='w-10 h-10 rounded-full' />
-                    {displayData.rider.username}
+                    <img src={API_DOMAIN_Img + displayData.to_user.profile_picture} alt="" className='w-10 h-10 rounded-full' />
+                    {displayData.to_user.name}
                 </div>
             </td>
             <td className="p-2 py-4">
                 <div className='flex items-center gap-2'>
-                    <img src={displayData.user.profile_image || dummyImage()} alt="" className='w-10 h-10 rounded-full' />
-                    {displayData.user.username}
+                    <img src={API_DOMAIN_Img + displayData.from_user.profile_picture} alt="" className='w-10 h-10 rounded-full' />
+                    {displayData.from_user.name}
                 </div>
             </td>
-            <td className="p-2 py-4">{displayData.orderId}</td>
+            <td className="p-2 py-4">OrderId-{displayData.id}</td>
             <td className="p-2 py-4 text-center">{formatCreatedAt(displayData.created_at)}</td>
             <td className="p-2 py-4">
                 <div className='flex items-center gap-2'>
                     {ratingStar(displayData.rating)}
                 </div>
             </td>
-            <td className="p-2 py-4">{displayData.comment || "-"}</td>
+            <td className="p-2 py-4">{displayData.review || "-"}</td>
         </tr>
     )
 }

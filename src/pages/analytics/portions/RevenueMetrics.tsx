@@ -2,9 +2,33 @@ import React from 'react'
 import images from '../../../constants/images'
 import SiteStatisticsChart from '../../dashboard/components/SiteStatisticsChart'
 import { BoxContainer } from '../component/BoxContainer'
-import { revenueMetricsData } from '../../../constants/statisticsData'
+import { useQuery } from '@tanstack/react-query'
+import { fetchAnalytics } from '../../../queries/analytics/analytics'
+import Loader from '../../../components/Loader'
 
-const RevenueMetrics  : React.FC= () => {
+
+const RevenueMetrics: React.FC = () => {
+  const {data:userAnalytics ,isLoading,error} = useQuery({
+    queryKey: ['userAnalytics'],
+    queryFn: () => fetchAnalytics('RevenueAnalytics'),
+  });
+  if (isLoading) return <Loader/>
+  if (error) {
+    console.error('Error fetching user analytics:', error);
+    return <div className="text-red-500 text-center">Failed to load user metrics.</div>;
+  }
+  const barData = {
+    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+    datasets: [
+      {
+        label: 'Revenue',
+        data: userAnalytics.monthlyUserCreated,
+        backgroundColor: '#7e22ce',
+        borderRadius: 6,
+      },
+    ],
+  };
+  
   return (
     <div className='flex flex-col gap-6 p-6'>
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
@@ -14,12 +38,11 @@ const RevenueMetrics  : React.FC= () => {
             Revenue Statistics
           </h2>
           <div className="p-4 pt-0 w-full h-[400px] overflow-hidden">
-            <SiteStatisticsChart />
+            <SiteStatisticsChart NotZoom={true} data={barData} />
           </div>
         </div>
       </div>
-
-      <BoxContainer heading='Revenue Metrics' data={revenueMetricsData}/>
+      <BoxContainer data={userAnalytics.cardData} heading='Revenue Metrics' />
     </div>
   )
 }

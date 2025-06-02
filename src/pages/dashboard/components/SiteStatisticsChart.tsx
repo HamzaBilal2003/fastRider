@@ -1,73 +1,96 @@
-import React from 'react';
-import { Bar } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-} from 'chart.js';
+import React, { useEffect, useRef } from 'react';
+import { Chart, ChartData, ChartOptions } from 'chart.js/auto';
+import zoomPlugin from 'chartjs-plugin-zoom';
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-);
+Chart.register(zoomPlugin);
 
-const SiteStatisticsChart: React.FC = () => {
-  const options = {
-    responsive: true,
-    maintainAspectRatio: false,
-    scales: {
-      x: {
-        grid: {
-          display: false,
-        },
-      },
-      y: {
-        beginAtZero: true,
-        grid: {
-          color: 'rgba(0, 0, 0, 0.1)',
-        },
-      },
-    },
-    plugins: {
-      legend: {
-        position: 'top' as const,
-        align: 'end' as const,
-        labels: {
-          usePointStyle: true,
-          boxWidth: 10,
-          padding: 20,
-        },
-      },
-    },
-  };
+interface SiteStatisticsChartProps {
+  data: ChartData;
+  NotZoom?: boolean; // Optional prop to disable zoom functionality
+}
 
-  const data = {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-    datasets: [
-      {
-        label: 'Earnings',
-        data: [220, 140, 350, 120, 500, 680, 120, 350, 1150, 240, 140, 100],
-        backgroundColor: '#22c55e',
-        borderRadius: 6,
-      },
-      {
-        label: 'Rides',
-        data: [650, 1150, 650, 650, 650, 950, 650, 250, 550, 350, 500, 950],
-        backgroundColor: '#7e22ce',
-        borderRadius: 6,
-      },
-    ],
-  };
+const SiteStatisticsChart: React.FC<SiteStatisticsChartProps> = ({ data, NotZoom = false }) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const chartRef = useRef<Chart | null>(null);
 
-  return <Bar options={options} data={data} />;
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    // Ensure proper cleanup of previous chart instance
+    if (chartRef.current) {
+      chartRef.current.destroy();
+      chartRef.current = null;
+    }
+
+    // Create new chart
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    try {
+      const newChart = new Chart(ctx, {
+        type: 'bar',
+        data: data,
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: {
+                drawBorder: false,
+              },
+            },
+            x: {
+              grid: {
+                display: false,
+              },
+            },
+          },
+          plugins: {
+            legend: {
+              position: 'top' as const,
+            },
+            zoom: NotZoom
+              ? undefined // Disable zoom if NotZoom is true
+              : {
+                  pan: {
+                    enabled: true,
+                    mode: 'xy', // Allow panning in both directions
+                  },
+                  zoom: {
+                    wheel: {
+                      enabled: true, // Enable zooming with the mouse wheel
+                    },
+                    pinch: {
+                      enabled: true, // Enable zooming with pinch gestures
+                    },
+                    mode: 'xy', // Allow zooming in both directions
+                  },
+                },
+          },
+        } as ChartOptions,
+      });
+
+      // Store the chart instance
+      chartRef.current = newChart;
+    } catch (error) {
+      console.error('Error creating chart:', error);
+    }
+
+    return () => {
+      if (chartRef.current) {
+        chartRef.current.destroy();
+        chartRef.current = null;
+      }
+    };
+  }, [data, NotZoom]);
+
+  return (
+    <div className="relative h-full w-full">
+      <canvas ref={canvasRef} />
+    </div>
+  );
 };
 
 export default SiteStatisticsChart;

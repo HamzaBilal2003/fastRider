@@ -18,6 +18,7 @@
     "axios": "^1.9.0",
     "bootstrap-icons": "^1.11.3",
     "chart.js": "^4.4.8",
+    "chartjs-plugin-zoom": "^2.2.0",
     "clsx": "^2.1.1",
     "formik": "^2.4.6",
     "js-cookie": "^3.0.5",

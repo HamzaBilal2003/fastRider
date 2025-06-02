@@ -25,17 +25,17 @@ const HeaderWrapper: React.FC<props> = ({ children,activeTab,setActiveTab }) => 
         { id: 'order-metrics', label: 'Order Metrics' },
         { id: 'rider-metrics', label: 'Rider Metrics' },
         { id: 'revenue-metrics', label: 'Revenue Metrics' },
-        { id: 'operational-metrics', label: 'Operational Metrics' },
+        // { id: 'operational-metrics', label: 'Operational Metrics' },
         { id: 'satisfaction-metrics', label: 'Customer Satisfaction Metrics' },
-        { id: 'geographic-metrics', label: 'Geographic Metrics' },
-        { id: 'marketing-metrics', label: 'Marketing Metrics' },
-        { id: 'technical-metrics', label: 'Technical Metrics' },
+        // { id: 'geographic-metrics', label: 'Geographic Metrics' },
+        // { id: 'marketing-metrics', label: 'Marketing Metrics' },
+        // { id: 'technical-metrics', label: 'Technical Metrics' },
       ];
     return (
         <>
             <div className="bg-white">
                 <HorizontalAlign havsShadow={true}>
-                    <h1 className="text-3xl font-bold px-6">Dashboard</h1>
+                    <h1 className="text-3xl font-bold px-6">Analytics</h1>
                     <div className="px-6">
                         <Dropdown
                             options={DateDropOptions}

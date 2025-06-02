@@ -75,16 +75,8 @@ const API_ENDPOINT = {
   setting :{
     getAll :  API_DOMAIN + 'admin/settings',
     update: API_DOMAIN + 'admin/settings/upsert-multiple',
-  },
-  dashboard : {
-    getAll: API_DOMAIN + 'admin/dashboard',
-  },
-  useractions : {
-    blockUser : API_DOMAIN + 'admin/block-user/',
-  },
-  Analytic : {
-    GetAll : API_DOMAIN + 'admin/analytics/',
-  },
+  }
+
 }
 
 export { API_DOMAIN, API_ENDPOINT, API_BASE_URL }

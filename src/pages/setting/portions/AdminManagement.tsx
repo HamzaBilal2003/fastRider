@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from "react";
 import SettingHeader from "../component/SettingHeader";
-import { adminStatics, adminUsers } from "../../../constants/statisticsData";
 import StatCard from "../../../components/StatCard";
 import HorizontalAlign from "../../../components/HorizontalAlign";
 import Dropdown from "../../../components/Dropdown";
@@ -10,23 +9,51 @@ import Button from "../../../components/buttons/Button";
 import SearchFilter from "../../../components/SearchFilter";
 import TableCan from "../../../components/TableCan";
 import AdminRow from "../component/AdminRow";
-import AddAdminModal from "../component/AddAdminModal";
+import AdminModal from "../component/AdminModal";
 import { useNavigate } from "react-router-dom";
-import { fetchAdminsManagement } from "../../../queries/admin/adminManagement";
-import { useQuery } from "@tanstack/react-query";
+import { fetchAdminsManagement, createAdmin, updateAdmin } from "../../../queries/admin/adminManagement";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Loader from "../../../components/Loader";
+import { toast } from "react-toastify";
+import images from "../../../constants/images";
 
-const AdminManagement  : React.FC= () => {
+const AdminManagement: React.FC = () => {
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const [selectedStatus, setSelectedStatus] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+    const [selectedAdmin, setSelectedAdmin] = useState(null);
 
-    const {data:queryData ,isLoading,error,refetch} = useQuery({
+    const { data: queryData, isLoading, error } = useQuery({
         queryKey: ['adminUsers'],
         queryFn: fetchAdminsManagement,
     });
 
+    const { mutate: addAdminMutation, isPending: creating } = useMutation({
+        mutationFn: (formData: FormData) => createAdmin(formData),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
+            toast.success('Admin added successfully');
+            setIsModalOpen(false);
+        },
+        onError: (error: any) => {
+            toast.error(error.message || 'Failed to add admin');
+        }
+    });
+
+    const { mutate: updateAdminMutation, isPending: updating } = useMutation({
+        mutationFn: ({ id, formData }: { id: number; formData: FormData }) => updateAdmin(id, formData),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
+            toast.success('Admin updated successfully');
+            setIsModalOpen(false);
+        },
+        onError: (error: any) => {
+            toast.error(error.message || 'Failed to update admin');
+        }
+    });
 
     // Filter users based on status and search query
     const filteredUsers = useMemo(() => {
@@ -46,11 +73,56 @@ const AdminManagement  : React.FC= () => {
         setSearchQuery(query);
     };
 
-    const handleAddAdmin = (values: any) => {
-        console.log('New admin values:', values);
-        setIsModalOpen(false);
+    const handleAddAdmin = (formData: FormData) => {
+        if (modalMode === 'add') {
+            addAdminMutation(formData);
+        } else if (modalMode === 'edit' && selectedAdmin) {
+            updateAdminMutation({ id: selectedAdmin.id, formData });
+        }
     };
-    if (isLoading)  return <Loader/>;
+
+    const handleEditAdmin = (admin: any) => {
+        setSelectedAdmin(admin);
+        setModalMode('edit');
+        setIsModalOpen(true);
+    };
+
+    const openAddModal = () => {
+        setSelectedAdmin(null);
+        setModalMode('add');
+        setIsModalOpen(true);
+    };
+
+    if (isLoading) return <Loader />;
+    const adminStatics = [
+        {
+            title: "Total Admins",
+            value: queryData?.total,
+            icon: images.user,
+            bgIcon: "bg-[#620748]",
+            bgCard: "bg-[#470434]",
+            textColor: "white",
+            statChangeColor: "text-green-500",
+        },
+        {
+            title: "Online Admins",
+            value: queryData?.active,
+            icon: images.user,
+            bgIcon: "bg-[#620748]",
+            bgCard: "bg-[#470434]",
+            textColor: "white",
+            statChangeColor: "text-green-500",
+        },
+        {
+            title: "Offline Admins",
+            value: queryData?.inactive,
+            icon: images.user,
+            bgIcon: "bg-[#620748]",
+            bgCard: "bg-[#470434]",
+            textColor: "white",
+            statChangeColor: "text-green-500",
+        },
+    ];
 
     return (
         <>
@@ -70,7 +142,7 @@ const AdminManagement  : React.FC= () => {
                         position="left-0"
                     />
                     <ItemGap>
-                        <Button handleFunction={() => setIsModalOpen(true)}>
+                        <Button handleFunction={openAddModal}>
                             Add New
                         </Button>
                         <Button handleFunction={() => navigate('/settings/admin/management')}>
@@ -79,17 +151,25 @@ const AdminManagement  : React.FC= () => {
                         <SearchFilter handleFunction={handleSearch} />
                     </ItemGap>
                 </HorizontalAlign>
+
                 <TableCan
                     heading="Users"
                     showHeading={true}
-                    headerTr={['Username', 'Role', 'date joined', 'status', 'actions']}
+                    headerTr={['Username', 'Role', 'Date Joined', 'Status', 'Actions']}
                     dataTr={filteredUsers}
                     TrName={AdminRow}
+                    TrPropsName={{
+                        onEdit: handleEditAdmin,
+                    }}
                 />
-                <AddAdminModal
+
+                <AdminModal
                     isOpen={isModalOpen}
                     onClose={() => setIsModalOpen(false)}
                     onSubmit={handleAddAdmin}
+                    mode={modalMode}
+                    isPending={creating || updating}
+                    initialValues={selectedAdmin}
                 />
             </div>
         </>

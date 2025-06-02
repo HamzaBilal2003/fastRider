@@ -7,19 +7,29 @@ import TableCan from '../../../components/TableCan';
 import ActivityRow from '../../../profile/component/ActivityRow';
 import { userActivities } from '../../../constants/statisticsData';
 import { bulkOptions, DateDropOptions } from '../../../components/FilterData';
+import { useQuery } from '@tanstack/react-query';
+import { fetchUsersDetail } from '../../../queries/user/UserDetail';
+import { useParams } from 'react-router-dom';
+import { formatCreatedAt } from '../../../constants/help';
+import { API_DOMAIN_Img } from '../../../apiConfig';
 
-const AdminDetail : React.FC = () => {
+const AdminDetail: React.FC = () => {
+    const {username} = useParams();
+    const { data: rawUserDetail, isLoading, error, refetch } = useQuery({
+        queryKey: ["userdetail"],
+        queryFn: () => fetchUsersDetail(parseInt(username)),
+    });
+    console.log(rawUserDetail);
     const userData = {
-        name: 'Qamardeen AbdulMalik',
-        email: 'qamardeenola@gmail.com',
-        phoneNumber: '07012345678',
-        location: 'Lagos, Nigeria',
-        lastLogin: '23/02/25 - 11:22 AM',
-        accountCreation: '10/02/25 - 07:21 AM',
-        walletBalance: 25000,
-        status: 'online' as const,
+        userId: rawUserDetail?.data.id,
+        name: rawUserDetail?.data.name ? rawUserDetail?.data.name : '',
+        email: rawUserDetail?.data.email ? rawUserDetail?.data.email : '',
+        phoneNumber: rawUserDetail?.data.phone ? rawUserDetail?.data.phone : '',
+        accountCreation: formatCreatedAt(rawUserDetail?.data.created_at),
+        profilePicture : rawUserDetail?.data.profile_picture ? API_DOMAIN_Img+ rawUserDetail?.data.profile_picture  : '',
+        status: rawUserDetail?.data.is_active,
     };
-    const handleDetailsClick = (e : any) => {
+    const handleDetailsClick = (e: any) => {
         console.log(e);
     }
 
@@ -28,7 +38,7 @@ const AdminDetail : React.FC = () => {
 
             <SettingHeader url='Admin Management' />
             <div className='flex flex-col gap-6 p-6'>
-                <UserProfile disabledLeft={true} userData={userData} />
+                <UserProfile handlerefetch={refetch} disabledLeft={true} userData={userData} />
                 <ItemGap>
                     <Dropdown
                         options={DateDropOptions}

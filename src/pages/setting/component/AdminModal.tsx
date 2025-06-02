@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Formik, Form, Field } from 'formik';
 import * as Yup from 'yup';
 import { X, Eye, EyeOff, Upload } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { fetchRolesAndModules, Role } from '../../../queries/role/role';
 import ButtonLoader from '../../../components/ButtonLoader';
 import { API_DOMAIN_Img } from '../../../apiConfig';
 
@@ -46,12 +48,11 @@ interface AdminModalProps {
     role?: string;
     phone?: string;
     profile_picture?: string;
-    is_active?: number;
   };
   mode: 'add' | 'edit';
 }
 
-const AddUserModal: React.FC<AdminModalProps> = ({
+const AdminModal: React.FC<AdminModalProps> = ({
   isOpen,
   onClose,
   onSubmit,
@@ -62,6 +63,14 @@ const AddUserModal: React.FC<AdminModalProps> = ({
   const [showPassword, setShowPassword] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
+  const {
+    data: rolesData,
+    isLoading,
+    error
+  } = useQuery({
+    queryKey: ["roles-and-modules"],
+    queryFn: fetchRolesAndModules
+  });
 
   useEffect(() => {
     if (initialValues?.profile_picture) {
@@ -76,8 +85,8 @@ const AddUserModal: React.FC<AdminModalProps> = ({
     email: '',
     password: '',
     role: '',
-    phone: '',
     is_active: 1,
+    phone: '',
     profile_picture: null,
     isEditing: mode === 'edit',
     ...initialValues
@@ -242,9 +251,14 @@ const AddUserModal: React.FC<AdminModalProps> = ({
                   className="w-full px-4 py-2 border rounded-lg focus:ring-purple-500 focus:border-purple-500"
                 >
                   <option value="">Select a role</option>
-                  <option value="user">User</option>
-                  <option value="rider">Rider</option>
-
+                  {rolesData?.roles.map((role: Role) => (
+                    <option
+                      key={role.role_id}
+                      value={role.role_name}
+                    >
+                      {role.role_name}
+                    </option>
+                  ))}
                 </Field>
                 {errors.role && touched.role && (
                   <div className="text-red-500 text-sm mt-1">{errors.role}</div>
@@ -268,11 +282,11 @@ const AddUserModal: React.FC<AdminModalProps> = ({
               </div>
 
               <button
-                disabled={isCreating}
+                disabled={isLoading || isCreating}
                 type="submit"
                 className="w-full bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors"
               >
-                {isCreating ? <ButtonLoader /> : mode === 'add' ? 'Add User' : 'Update User'}
+                {isLoading || isCreating ? <ButtonLoader /> : mode === 'add' ? 'Add Admin' : 'Update Admin'}
               </button>
             </Form>
           )}
@@ -282,4 +296,4 @@ const AddUserModal: React.FC<AdminModalProps> = ({
   );
 };
 
-export default AddUserModal;
+export default AdminModal;

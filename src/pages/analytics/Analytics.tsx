@@ -25,7 +25,7 @@ const Analytics : React.FC = () => {
       case 'order-metrics': return <OrderMetrics />;
       case 'rider-metrics': return <RiderMetrics />;
       case 'revenue-metrics': return <RevenueMetrics />;
-      case 'operational-metrics': return <OperationalMetrics />;
+      // case 'operational-metrics': return <OperationalMetrics />;
       case 'satisfaction-metrics': return <SatisfactionMetrics />;
       case 'geographic-metrics': return <GeographicMetrics />;
       case 'marketing-metrics': return <MarketingMetrics />;

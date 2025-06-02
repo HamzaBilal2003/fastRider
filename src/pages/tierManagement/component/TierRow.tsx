@@ -1,30 +1,25 @@
 import React from 'react'
 import {formatCreatedAt } from '../../../constants/help';
 import images from '../../../constants/images';
+import { TierResponse } from '../../../queries/tier';
 
 interface props {
-    displayData: {
-        id: number;
-        tier: string | number;
-        noOfRider: number | string;
-        commissionRate:string|number;
-        amount:number | string; 
-        created_at:string;
-        status: string;
-    };
+    displayData: TierResponse;
+    onDelete: (del: any) => void;
+    onEdit: (edit: any) => void;
 }
 
 
-const TierRow: React.FC<props> = ({ displayData }) => {
+const TierRow: React.FC<props> = ({ displayData,onDelete,onEdit }) => {
     return (
         <tr className="hover:bg-gray-100 transition cursor-pointer relative"> {/* Removed border-b */}
             <td className="p-2 px-4 w-10">
                 <input type="checkbox" />
             </td>
             <td className="p-2">{displayData.tier}</td>
-            <td className="p-2">{displayData.noOfRider}</td>
-            <td className="p-2">{displayData.commissionRate}%</td>
-            <td className="p-2">{displayData.amount}</td>
+            <td className="p-2">{displayData.no_of_rides}</td>
+            <td className="p-2">{displayData.commission}%</td>
+            <td className="p-2">{displayData.tier_amount}</td>
             <td className="p-2 text-center">{formatCreatedAt(displayData.created_at)}</td>
             <td className="p-2">
                 <div className='flex justify-center items-center'>
@@ -33,10 +28,10 @@ const TierRow: React.FC<props> = ({ displayData }) => {
             </td>
             <td className='p-2'>
                 <div className='flex items-center justify-center gap-2'>
-                    <button className='p-2 border border-gray-200 rounded-md'>
+                    <button onClick={() => onEdit(displayData)} className='p-2 cursor-pointer border border-gray-200 rounded-md'>
                         <img src={images.editBlack} alt="edit admin" className='size-[20px]' />
                     </button>
-                    <button className='p-2 border border-gray-200 rounded-md'>
+                    <button onClick={()=> onDelete(displayData.id)} className='p-2 cursor-pointer border border-gray-200 rounded-md'>
                         <img src={images.delBlack} alt="edit admin" className='size-[20px]' />
                     </button>
                 </div>

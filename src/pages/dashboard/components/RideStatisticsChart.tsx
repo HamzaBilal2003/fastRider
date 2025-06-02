@@ -1,82 +1,84 @@
-import React from 'react';
-import { Doughnut } from 'react-chartjs-2';
+import React, { useEffect, useRef } from 'react';
 import {
   Chart as ChartJS,
   ArcElement,
   Tooltip,
   Legend,
+  ChartOptions
 } from 'chart.js';
 
+// Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-const RideStatisticsChart: React.FC = () => {
-  const options = {
-    responsive: true,
-    maintainAspectRatio: true,
-    cutout: '60%',
-    plugins: {
-      legend: {
-        display: false,
-      },
-      tooltip: {
-        enabled: true,
-        callbacks: {
-          label: (context: any) => {
-            return `${context.label}: ${context.parsed}%`;
-          },
-        },
-      },
-    },
-  };
+interface RideStatisticsChartProps {
+  data: any;
+  labels: Array<{
+    label: string;
+    labelColor: string;
+  }>;
+}
 
-  const data = {
-    labels: ['Completed Rides', 'Active Rides', 'Scheduled Rides'],
-    datasets: [
-      {
-        data: [25, 60, 15],
-        backgroundColor: [
-          '#dc2626', // red for completed
-          '#16a34a', // green for active
-          '#818cf8', // blue for scheduled
-        ],
-        borderWidth: 0,
-      },
-    ],
-  };
+const RideStatisticsChart: React.FC<RideStatisticsChartProps> = ({ data, labels }) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const chartRef = useRef<ChartJS | null>(null);
+  console.log(data);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    // Always destroy the existing chart before creating a new one
+    if (chartRef.current) {
+      chartRef.current.destroy();
+    }
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    try {
+      chartRef.current = new ChartJS(ctx, {
+        type: 'pie',
+        data: data,
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false,
+            },
+          },
+        } as ChartOptions<'pie'>,
+      });
+    } catch (error) {
+      console.error('Error creating chart:', error);
+    }
+
+    return () => {
+      if (chartRef.current) {
+        chartRef.current.destroy();
+        chartRef.current = null;
+      }
+    };
+  }, [data]);
 
   return (
-    <div className="w-full h-fit flex flex-col items-center justify-center">
-      <div className='lg:w-[60%]'>
-        <Doughnut data={data} options={options} />
+    <div className="flex flex-col w-full">
+      <div className="relative h-64">
+        <canvas ref={canvasRef} />
       </div>
-
-
-      {/* Custom Legend */}
-      <div className="mt-10 w-full">
-        {/* Completed Rides - Left */}
-        <div className="">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-[#dc2626] rounded"></div>
-            <span className="text-gray-600">Completed Rides</span>
-          </div>
+      
+      {labels.length > 0 && (
+        <div className="flex flex-col gap-2 mt-4">
+          {labels.map((label, index) => (
+            <div key={index} className="flex items-center gap-2">
+              <span 
+                className="w-4 h-4 rounded-sm" 
+                style={{ backgroundColor: label.labelColor }}
+              />
+              <span className="text-sm">{label.label}</span>
+            </div>
+          ))}
         </div>
-
-        {/* Active Rides - Right */}
-        <div className="">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-[#16a34a] rounded"></div>
-            <span className="text-gray-600">Active Rides</span>
-          </div>
-        </div>
-
-        {/* Scheduled Rides - Top */}
-        <div className="">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-[#818cf8] rounded"></div>
-            <span className="text-gray-600">Scheduled Rides</span>
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 };

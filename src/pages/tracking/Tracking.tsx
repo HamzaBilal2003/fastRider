@@ -26,7 +26,7 @@ const Tracking : React.FC = () => {
     <>
       <div className="bg-white">
         <HorizontalAlign havsShadow={true}>
-          <h1 className="text-lg font-semibold px-6">Settings</h1>
+          <h1 className="text-lg font-semibold px-6">Tracking & Location</h1>
           <ItemGap className="px-6">
             <Filter
               tabs={tabs}

@@ -1,9 +1,14 @@
 import React from 'react';
 import images from '../../constants/images';
 import MoreDropdown from '../../components/MoreDropdown';
+import { useMutation } from '@tanstack/react-query';
+import { fetchBlockUser } from '../../queries/useractions';
+import { toast } from 'react-toastify';
+import ButtonLoader from '../../components/ButtonLoader';
 
 interface UserProfileProps {
   userData: {
+    userId: number | string ;
     name: string;
     email: string;
     phoneNumber: string;
@@ -14,14 +19,35 @@ interface UserProfileProps {
     profilePicture?: string;
     status: any;
   };
-  disabledLeft?:boolean;
-  handleEdit:()=>void;
+  handlerefetch: ()=>void;
+  disabledLeft?: boolean;
+  handleEdit: () => void;
 }
 
-const UserProfile: React.FC<UserProfileProps> = ({ userData,disabledLeft,handleEdit }) => {
+const UserProfile: React.FC<UserProfileProps> = ({ userData, disabledLeft, handleEdit,handlerefetch }) => {
+
+
+  const { mutate: handleBlock, isPending: isBlocking } = useMutation({
+    mutationKey: ['block-user'],
+    mutationFn: (id: any) => fetchBlockUser(id),
+    onSuccess: (response) => {
+      if (response.data.is_active == 3) {
+        toast.success('User block successfully');
+      } else {
+        toast.success('User unblock successfully');
+      }
+      handlerefetch();
+    },
+    onError: (error: any) => {
+      console.error('Error updating user profile:', error);
+      toast.error(error?.response?.data?.message || error.message || 'Failed to block.');
+    },
+  });
+
+
   return (
     <div className="bg-[#470434] text-white rounded-2xl shadow-lg ">
-      <div className={`grid grid-cols-1 ${ disabledLeft ? "lg:grid-cols-9" : "lg:grid-cols-12"} gap-6`}>
+      <div className={`grid grid-cols-1 ${disabledLeft ? "lg:grid-cols-9" : "lg:grid-cols-12"} gap-6`}>
         {/* Left Section - Wallet */}
         {!disabledLeft && <div className={`space-y-6 lg:col-span-3 bg-[#620748] p-6 rounded-l-2xl`}>
           <h2 className="text-lg opacity-90">Wallet Balance</h2>
@@ -41,11 +67,13 @@ const UserProfile: React.FC<UserProfileProps> = ({ userData,disabledLeft,handleE
           <div className={`relative ${disabledLeft && "lg:mx-6"}`}>
             <div className="w-20 h-20 rounded-full bg-gray-200 overflow-hidden">
               {userData.profilePicture ? (
-                <img
-                  src={userData.profilePicture}
-                  alt={userData.name}
-                  className="w-full h-full object-cover"
-                />
+                <>
+                  <img
+                    src={userData.profilePicture}
+                    alt={userData.name}
+                    className="w-full h-full object-cover"
+                  />
+                </>
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-purple-700">
                   <span className="text-2xl font-bold">
@@ -54,46 +82,47 @@ const UserProfile: React.FC<UserProfileProps> = ({ userData,disabledLeft,handleE
                 </div>
               )}
             </div>
-            <div className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-purple-900 ${userData.status === 'online' ? 'bg-green-500' : 'bg-gray-400'
+            <div className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-purple-900 ${userData.status == 1  ? 'bg-green-500' :  userData.status == 3 ? 'bg-red-600' :  'bg-gray-400'
               }`} />
           </div>
 
           <div className="flex-1 space-y-4">
             <div className="grid grid-cols-1 lg:grid-cols-2 justify-between gap-4">
-                {userData.name && (
+              {userData.name && (
                 <div className='space-y-2'>
                   <h3 className="font-medium opacity-80">Name</h3>
                   <p className="font-semibold">{userData.name}</p>
                 </div>
-                )}
-                {userData.email && (
+              )}
+              {userData.email && (
                 <div className='space-y-2'>
                   <h3 className="font-medium opacity-80">Email</h3>
                   <p className="font-semibold">{userData.email}</p>
                 </div>
-                )}
-                {userData.location && (
+              )}
+              {/* {userData.location && (
                 <div className='space-y-2'>
                   <h3 className="font-medium opacity-80">Location</h3>
-                  <p className="font-semibold">{userData.location}</p>
+                  <p className="font-semibold">{userData.location}</p>userId
                 </div>
-                )}
-                {userData.phoneNumber && (
+                )} */}
+              {userData.phoneNumber && (
                 <div className='space-y-2'>
                   <h3 className="font-medium opacity-80">Phone Number</h3>
                   <p className="font-semibold">{userData.phoneNumber}</p>
                 </div>
-                )}
-                {userData.lastLogin && (
+              )}
+
+              {/* {userData.lastLogin && (
                 <div className='space-y-2'>
                   <h3 className="font-medium opacity-80">Last Login</h3>
                   <p className="font-semibold">{userData.lastLogin}</p>
                 </div>
-                )}
+                )} */}
               <div className="flex justify-end items-center gap-2">
-                <button onClick={handleEdit} className="p-2 hover:bg-white/10 cursor-pointer rounded-lg transition-colors border border-gray-400">
+                {!disabledLeft && <button onClick={handleEdit} className="p-2 hover:bg-white/10 cursor-pointer rounded-lg transition-colors border border-gray-400">
                   <img src={images.profileBell} alt="icon" className='size-[20px]' />
-                </button>
+                </button>}
                 <button className="p-2 hover:bg-white/10 cursor-pointer rounded-lg transition-colors border border-gray-400">
                   <img src={images.ProfileNotifcation} alt="icon" className='size-[20px]' />
                 </button>
@@ -102,9 +131,9 @@ const UserProfile: React.FC<UserProfileProps> = ({ userData,disabledLeft,handleE
                   menuClass="min-w-[150px] bg-white"
                 >
                   <div className='flex flex-col gap-2 px-1'>
-                    <button className='py-2 flex items-center gap-2 px-2 hover:underline text-black cursor-pointer text-center'>
+                    <button disabled={isBlocking} onClick={()=> handleBlock(userData.userId)} className='py-2 flex items-center gap-2 px-2 hover:underline text-black cursor-pointer text-center'>
                       <img src={images.warning} alt="block icon" className='size-[20px]' />
-                      Block User
+                      {isBlocking ? <ButtonLoader/> : userData.status == 3 ? 'Unblock User':  "Block User"} 
                     </button>
                     <button className='py-2 flex items-center gap-2 px-2 hover:underline text-black cursor-pointer text-center'>
                       <img src={images.del} alt="del icon" className='size-[20px]' />

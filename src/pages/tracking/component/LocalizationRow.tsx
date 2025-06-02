@@ -1,12 +1,9 @@
 import React from 'react'
 import images from '../../../constants/images';
+import { Location } from '../../../queries/location';
 
 interface Props {
-    displayData: {
-        id: number;
-        country: string;
-        state: string;
-    };
+    displayData: Location;
     onDelete?: (del: any) => void;
     onEdit?: (edit: any) => void;
 }
@@ -22,7 +19,7 @@ const LocalizationRow: React.FC<Props> = ({
     };
 
     const handleDelete = () => {
-        onDelete?.(displayData);
+        onDelete?.(displayData.id);
     };
 
     return (

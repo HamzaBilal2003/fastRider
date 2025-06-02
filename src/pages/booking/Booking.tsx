@@ -144,7 +144,7 @@ const Booking: React.FC = () => {
         </HorizontalAlign>
 
         <TableCan
-          heading="All Transactions"
+          heading="All Bookings"
           showHeading={true}
           headerTr={[
             "Order id",

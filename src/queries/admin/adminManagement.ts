@@ -43,3 +43,11 @@ export const createAdmin = async (data: FormData): Promise<any> => {
         throw new Error(error?.message || 'unknown error');
     }
 };
+export const updateAdmin = async (id:any,data: FormData): Promise<any> => {
+    try {
+        const response = await apiCall({ url: API_ENDPOINT.adminEndpoint.updateAdmin +id , method: 'POST', data, token: tokenn });
+        return response;
+    } catch (error: any) {
+        throw new Error(error?.message || 'unknown error');
+    }
+};

@@ -10,22 +10,49 @@ import TableCan from "../../components/TableCan";
 import UsersRow from "./components/UsersRow";
 import AddUserModal from "./components/AddUserModal";
 import { fetchUsersManagement } from "../../queries/user/UserManagement";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import images from "../../constants/images";
 import Loader from "../../components/Loader";
+import { toast } from "react-toastify";
+import { createAdmin } from "../../queries/admin/adminManagement";
 
 const UserManagement: React.FC = () => {
+  const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+  const [selectedUser, setSelectedUser] = useState(null);
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const { data: rawUserManagement, isLoading } = useQuery({
+
+  const { data: rawUserManagement, isLoading,refetch } = useQuery({
     queryKey: ["usermanagementqueries"],
     queryFn: fetchUsersManagement,
   });
 
-  console.log("Fetch data: ", rawUserManagement);
+  const { mutate: createUserMutation, isPending: creating } = useMutation({
+    mutationFn: (formData: FormData) => createAdmin(formData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["usermanagementqueries"] });
+      toast.success("User added successfully");
+      setIsModalOpen(false);
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to add user");
+    },
+  });
 
-  // Filter users based on status and search query
+  // const { mutate: updateUserMutation, isPending: updating } = useMutation({
+  //   mutationFn: ({ id, formData }: { id: number; formData: FormData }) => updateUser(id, formData),
+  //   onSuccess: () => {
+  //     queryClient.invalidateQueries({ queryKey: ["usermanagementqueries"] });
+  //     toast.success("User updated successfully");
+  //     setIsModalOpen(false);
+  //   },
+  //   onError: (error: any) => {
+  //     toast.error(error.message || "Failed to update user");
+  //   },
+  // });
+
   const filteredUsers = useMemo(() => {
     if (!rawUserManagement?.data?.users) return [];
     return rawUserManagement.data.users.filter((user) => {
@@ -39,29 +66,24 @@ const UserManagement: React.FC = () => {
     });
   }, [rawUserManagement, selectedStatus, searchQuery]);
 
-  const handleDateChange = (value: string) => {
-    console.log("Selected date range: ", value);
-    // Here you would typically fetch data for the selected date range
-  };
-
   const handleStatusChange = (status: string) => {
-    console.log("Selected status: ", status);
     setSelectedStatus(status);
   };
 
-  const handleBulkAction = (action: string) => {
-    console.log("Bulk action selected: ", action);
-    // Implement bulk actions here
-  };
-
   const handleSearch = (query: string) => {
-    console.log("Search query: ", query);
     setSearchQuery(query);
   };
 
-  const handleAddUser = (values: any) => {
-    console.log("New user data: ", values);
-    setIsModalOpen(false);
+  const handleAddUser = (formData: FormData) => {
+    if (modalMode === "add") {
+      createUserMutation(formData);
+    }
+  };
+
+  const openAddModal = () => {
+    setSelectedUser(null);
+    setModalMode("add");
+    setIsModalOpen(true);
   };
 
   const userStatic = [
@@ -107,7 +129,7 @@ const UserManagement: React.FC = () => {
           <div className="px-6">
             <Dropdown
               options={DateDropOptions}
-              onChange={handleDateChange}
+              onChange={(value) => console.log("Selected date range: ", value)}
               placeholder="This Week"
               position="right-0"
             />
@@ -130,13 +152,13 @@ const UserManagement: React.FC = () => {
             />
             <Dropdown
               options={bulkOptions}
-              onChange={handleBulkAction}
+              onChange={(action) => console.log("Bulk action selected: ", action)}
               placeholder="Bulk Actions"
               position="left-0"
             />
           </ItemGap>
           <ItemGap>
-            <Button handleFunction={() => setIsModalOpen(true)}>
+            <Button handleFunction={openAddModal}>
               Add New User
             </Button>
             <SearchFilter handleFunction={handleSearch} />
@@ -153,21 +175,25 @@ const UserManagement: React.FC = () => {
             "Wallet Balance",
             "Status",
             "Actions",
-            "Other",
           ]}
           dataTr={filteredUsers}
           TrName={UsersRow}
+          TrPropsName={{
+            handlerefetch : refetch,
+          }}
         />
 
         <AddUserModal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           onSubmit={handleAddUser}
+          mode={modalMode}
+          isPending={creating}
+          initialValues={selectedUser}
         />
       </div>
     </div>
   );
 };
-
 
 export default UserManagement;

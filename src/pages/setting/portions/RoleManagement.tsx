@@ -1,163 +1,289 @@
-import React, { useState } from 'react';
-import {  MoreVertical, Edit2, Trash2, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { toast } from 'react-toastify';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { PlusCircle } from 'lucide-react';
+
 import AddRoleModal from '../component/AddRoleModal';
-import SearchFilter from '../../../components/SearchFilter';
+import RoleCard from '../component/RoleCard';
+import ModuleCheckbox from '../component/ModuleCheckbox';
+import DeleteRoleModal from '../component/DeleteRoleModal';
 import HorizontalAlign from '../../../components/HorizontalAlign';
+import Loader from '../../../components/Loader';
 
-interface Permission {
-  id: string;
-  name: string;
-  key: string;
-  hasChildren?: boolean;
-}
+import { 
+  fetchRolesAndModules, 
+  createRole, 
+  updateRole, 
+  deleteRole,
+  assignModulesToRole 
+} from '../../../queries/role/role';
+import { Role, Module, RoleFormValues } from '../../../queries/role/role';
 
-interface Role {
-  id: string;
-  name: string;
-  permissions: string[];
-}
-
-const mockPermissions: Permission[] = [
-  { id: '1', name: 'Dashboard', key: 'dashboard', hasChildren: true },
-  { id: '2', name: 'Create', key: 'create' },
-  { id: '3', name: 'Update', key: 'update' },
-  { id: '4', name: 'View', key: 'view' },
-  { id: '5', name: 'Delete', key: 'delete' },
-  { id: '6', name: 'User Mgt', key: 'user_mgt', hasChildren: true },
-  { id: '7', name: 'Riders Mgt', key: 'riders_mgt', hasChildren: true },
-  { id: '8', name: 'Support', key: 'support', hasChildren: true },
-  { id: '9', name: 'Reviews', key: 'reviews', hasChildren: true },
-];
-
-const mockRoles: Role[] = [
-  { id: '1', name: 'Owner', permissions: ['dashboard', 'create', 'update'] },
-  { id: '2', name: 'Admin', permissions: ['dashboard', 'view'] },
-  { id: '3', name: 'Super Admin', permissions: ['dashboard', 'create', 'update', 'delete'] },
-];
-const  RoleManagement : React.FC = ()=> {
-  // const [searchTerm, setSearchTerm] = useState('');
+const RoleManagement: React.FC = () => {
+  const queryClient = useQueryClient();
+  
+  // State management
   const [isAddRoleModalOpen, setIsAddRoleModalOpen] = useState(false);
-  const [roles, setRoles] = useState(mockRoles);
-  const [selectedRole, setSelectedRole] = useState<string | null>(null);
+  const [isEditRoleModalOpen, setIsEditRoleModalOpen] = useState(false);
+  const [isDeleteRoleModalOpen, setIsDeleteRoleModalOpen] = useState(false);
+  const [selectedRoleId, setSelectedRoleId] = useState<number | null>(null);
+  const [editFormValues, setEditFormValues] = useState<RoleFormValues>({ name: '', permissions: [] });
+  const [permissionChanges, setPermissionChanges] = useState<Map<string, boolean>>(new Map());
+  
+  // Fetch roles and modules data
+  const { 
+    data: rolesData, 
+    isLoading, 
+    error 
+  } = useQuery({
+    queryKey: ["roles-and-modules"],
+    queryFn: fetchRolesAndModules
+  });
 
-  const handleSearch = (value: string) => {
-    // setSearchTerm(value);
-    console.log(value);
+  // Mutations
+  const createRoleMutation = useMutation({
+    mutationFn: (values: RoleFormValues) => createRole(values.name),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["roles-and-modules"] });
+      toast.success("Role created successfully");
+      setIsAddRoleModalOpen(false);
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to create role");
+    }
+  });
+
+  const updateRoleMutation = useMutation({
+    mutationFn: (values: RoleFormValues) => {
+      if (!selectedRoleId) throw new Error("No role selected");
+      return updateRole(selectedRoleId, values.name);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["roles-and-modules"] });
+      toast.success("Role updated successfully");
+      setIsEditRoleModalOpen(false);
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to update role");
+    }
+  });
+
+  const deleteRoleMutation = useMutation({
+    mutationFn: () => {
+      if (!selectedRoleId) throw new Error("No role selected");
+      return deleteRole(selectedRoleId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["roles-and-modules"] });
+      toast.success("Role deleted successfully");
+      setIsDeleteRoleModalOpen(false);
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to delete role");
+    }
+  });
+
+  const assignModulesMutation = useMutation({
+    mutationFn: ({ roleId, moduleIds }: { roleId: number, moduleIds: number[] }) => 
+      assignModulesToRole(roleId, moduleIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["roles-and-modules"] });
+      toast.success("Permissions updated successfully");
+      setPermissionChanges(new Map());
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to update permissions");
+    }
+  });
+
+  // Event handlers
+  const handleAddRole = (values: RoleFormValues) => {
+    createRoleMutation.mutate(values);
   };
 
-  const handleAddRole = (newRole: { name: string; permissions: string[] }) => {
-    const role: Role = {
-      id: (roles.length + 1).toString(),
-      ...newRole
-    };
-    setRoles([...roles, role]);
-    setIsAddRoleModalOpen(false);
-  };
-
-  const handleRoleAction = (roleId: string, action: 'edit' | 'delete') => {
-    if (action === 'delete') {
-      setRoles(roles.filter(role => role.id !== roleId));
-    } else {
-      setSelectedRole(roleId);
+  const handleEditRole = (roleId: number) => {
+    const role = rolesData?.roles.find(r => r.role_id === roleId);
+    if (role) {
+      setSelectedRoleId(roleId);
+      setEditFormValues({
+        name: role.role_name,
+        permissions: role.permissions
+          .filter(p => p.has_permission)
+          .map(p => p.module_id)
+      });
+      setIsEditRoleModalOpen(true);
     }
   };
 
+  const handleUpdateRole = (values: RoleFormValues) => {
+    updateRoleMutation.mutate(values);
+  };
+
+  const handleDeleteClick = (roleId: number) => {
+    setSelectedRoleId(roleId);
+    setIsDeleteRoleModalOpen(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    deleteRoleMutation.mutate();
+  };
+
+  const handleTogglePermission = (roleId: number, moduleId: number, newState: boolean) => {
+    // Track changes in a map with composite key
+    const key = `${roleId}-${moduleId}`;
+    const newChanges = new Map(permissionChanges);
+    newChanges.set(key, newState);
+    setPermissionChanges(newChanges);
+    
+    // Create optimistic update
+    const updatedRoles = rolesData?.roles.map(role => {
+      if (role.role_id === roleId) {
+        const updatedPermissions = role.permissions.map(perm => {
+          if (perm.module_id === moduleId) {
+            return { ...perm, has_permission: newState };
+          }
+          return perm;
+        });
+        return { ...role, permissions: updatedPermissions };
+      }
+      return role;
+    });
+    
+    // Update the cache optimistically
+    queryClient.setQueryData(["roles-and-modules"], {
+      ...rolesData,
+      roles: updatedRoles
+    });
+    
+    // Send the update to the server
+    const role = rolesData?.roles.find(r => r.role_id === roleId);
+    if (role) {
+      // Get current module IDs with permission
+      const currentModuleIds = role.permissions
+        .filter(p => p.has_permission)
+        .map(p => p.module_id);
+      
+      // Calculate the new module IDs
+      let newModuleIds: number[];
+      if (newState) {
+        // Add moduleId if it's not already there
+        newModuleIds = [...new Set([...currentModuleIds, moduleId])];
+      } else {
+        // Remove moduleId
+        newModuleIds = currentModuleIds.filter(id => id !== moduleId);
+      }
+      
+      assignModulesMutation.mutate({ roleId, moduleIds: newModuleIds });
+    }
+  };
+
+  if (isLoading) return <Loader />;
+  if (error) return <div className="text-center my-10 text-red-600">Error loading roles and modules</div>;
+
   return (
-    <div>
-      <div className='bg-white'>
+    <div className="min-h-screen bg-gray-50">
+      <div className="bg-white shadow">
         <HorizontalAlign havsShadow={true}>
-          <h1 className="text-2xl font-semibold px-6"><span className='text-gray-400'>Admin Management</span> / Role Manegement</h1>
+          <h1 className="text-2xl font-semibold px-6 py-4">
+            <span className="text-gray-400">Admin Management</span> / Role Management
+          </h1>
         </HorizontalAlign>
       </div>
-      <div className="p-6">
-        <div className="flex justify-end items-center mb-6">
+      
+      <div className="p-6 max-w-7xl mx-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-bold text-gray-800">Manage Roles & Permissions</h2>
           <button
             onClick={() => setIsAddRoleModalOpen(true)}
-            className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700"
+            className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
           >
-            Create new role
+            <PlusCircle size={18} />
+            Create New Role
           </button>
         </div>
 
-        <div className="bg-white rounded-lg shadow">
-          <h1 className="text-2xl font-bold p-4">User Permissions</h1>
-          <div className="p-4 border-b">
-            <div className="grid grid-cols-1 lg:grid-cols-12 space-x-4">
-              <div className="relative flex-1 lg:col-span-3">
-                <SearchFilter handleFunction={(e) => handleSearch(e)} />
+        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+          <div className="p-6 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Role Permissions</h3>
+            
+            {(!rolesData?.roles || rolesData.roles.length === 0) ? (
+              <div className="text-center py-6 text-gray-500">
+                No roles found. Create a new role to get started.
               </div>
-              <div className={`lg:col-span-9 grid grid-cols-6`}>
-                {roles.map(role => (
-                  <div key={role.id} className="flex items-center space-x-2">
-                    <span>{role.name}</span>
-                    <div className="relative">
-                      <button
-                        className="text-gray-500 hover:text-gray-700"
-                        onClick={() => setSelectedRole(selectedRole === role.id ? null : role.id)}
-                      >
-                        <MoreVertical size={20} />
-                      </button>
-                      {selectedRole === role.id && (
-                        <div className="absolute right-0 mt-2 w-32 bg-white rounded-lg shadow-lg border z-50">
-                          <button
-                            className="flex items-center space-x-2 px-4 py-2 w-full hover:bg-gray-50 text-left"
-                            onClick={() => handleRoleAction(role.id, 'edit')}
-                          >
-                            <Edit2 size={16} />
-                            <span>Edit Role</span>
-                          </button>
-                          <button
-                            className="flex items-center space-x-2 px-4 py-2 w-full hover:bg-gray-50 text-left text-red-600"
-                            onClick={() => handleRoleAction(role.id, 'delete')}
-                          >
-                            <Trash2 size={16} />
-                            <span>Delete Role</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">
+                        Module
+                      </th>
+                      {rolesData?.roles.map((role) => (
+                        <th key={role.role_id} className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <RoleCard
+                            role={role}
+                            onEdit={handleEditRole}
+                            onDelete={handleDeleteClick}
+                          />
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {rolesData?.modules.map((module ,index) => (
+                      <tr key={module.id} className={`hover:bg-gray-50 transition-colors ${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`}>
+                        <td className="px-6 py-4 capitalize whitespace-nowrap text-sm font-medium text-gray-900">
+                          {module.name}
+                        </td>
+                        {rolesData?.roles.map((role) => {
+                          const permission = role.permissions.find(
+                            (p) => p.module_id === module.id
+                          );
+                          return (
+                            <td key={`${role.role_id}-${module.id}`} className="px-6 py-4 whitespace-nowrap">
+                              <ModuleCheckbox
+                                moduleId={module.id}
+                                roleId={role.role_id}
+                                roleName={role.role_name}
+                                isChecked={permission?.has_permission || false}
+                                onTogglePermission={handleTogglePermission}
+                              />
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            </div>
-          </div>
-
-          <div className="divide-y">
-            {mockPermissions.map((permission) => (
-              <div key={permission.id} className="grid grid-cols-12 p-4">
-                <div className="flex items-center space-x-2 col-span-3 ">
-                  {permission.hasChildren && (
-                    <ChevronRight size={20} className="text-gray-400" />
-                  )}
-                  <span className={permission.hasChildren ? 'font-medium' : 'pl-6'}>
-                    {permission.name}
-                  </span>
-                </div>
-                <div className='col-span-9 grid grid-cols-6'>
-                  {roles.map(role => (
-                    <div key={role.id} className="flex col-span-1 pl-4">
-                      <input
-                        type="checkbox"
-                        className="w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                        checked={role.permissions.includes(permission.key)}
-                        onChange={() => { }}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
+            )}
           </div>
         </div>
-
-        <AddRoleModal
-          isOpen={isAddRoleModalOpen}
-          onClose={() => setIsAddRoleModalOpen(false)}
-          onSubmit={handleAddRole}
-        />
       </div>
+
+      {/* Modals */}
+      <AddRoleModal
+        isOpen={isAddRoleModalOpen}
+        onClose={() => setIsAddRoleModalOpen(false)}
+        onSubmit={handleAddRole}
+      />
+      
+      <AddRoleModal
+        isOpen={isEditRoleModalOpen}
+        onClose={() => setIsEditRoleModalOpen(false)}
+        onSubmit={handleUpdateRole}
+        initialValues={editFormValues}
+        title="Edit Role"
+      />
+      
+      <DeleteRoleModal
+        isOpen={isDeleteRoleModalOpen}
+        onClose={() => setIsDeleteRoleModalOpen(false)}
+        onConfirm={handleDeleteConfirm}
+        roleName={rolesData?.roles.find(r => r.role_id === selectedRoleId)?.role_name || ''}
+      />
     </div>
   );
-}
+};
 
-export default RoleManagement
+export default RoleManagement;

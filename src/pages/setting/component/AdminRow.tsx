@@ -8,10 +8,11 @@ import { API_DOMAIN_Img } from '../../../apiConfig';
 
 interface props {
     displayData: Admin;
+    onEdit: (data:any) => void;
 }
 
 
-const AdminRow: React.FC<props> = ({ displayData }) => {
+const AdminRow: React.FC<props> = ({ displayData,onEdit }) => {
     const navigate =  useNavigate();
     return (
         <tr className="hover:bg-gray-100 transition cursor-pointer relative"> {/* Removed border-b */}
@@ -36,12 +37,12 @@ const AdminRow: React.FC<props> = ({ displayData }) => {
                     <Button handleFunction={() => navigate(`/settings/admin/${displayData.id}/detail`)} >
                         Admin Details
                     </Button>
-                    <button className='p-2 border border-gray-200 rounded-md'>
+                    <button onClick={()=>onEdit(displayData)} className='p-2 border border-gray-200 rounded-md'>
                         <img src={images.editBlack} alt="edit admin" className='size-[20px]' />
                     </button>
-                    <button className='p-2 border border-gray-200 rounded-md'>
+                    {/* <button className='p-2 border border-gray-200 rounded-md'>
                         <img src={images.delBlack} alt="edit admin" className='size-[20px]' />
-                    </button>
+                    </button> */}
                 </div>
             </td>
         </tr>

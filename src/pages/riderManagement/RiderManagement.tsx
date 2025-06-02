@@ -1,8 +1,7 @@
 import React, { useState, useMemo } from "react";
 import Dropdown from "../../components/Dropdown";
 import HorizontalAlign from "../../components/HorizontalAlign";
-import { bulkOptions, DateDropOptions, onlineStatus, riderStatus, tierStatus } from "../../components/FilterData";
-import { riderTableStatic } from '../../constants/statisticsData'
+import { DateDropOptions, onlineStatus, riderStatus, tierStatus } from "../../components/FilterData";
 import StatCard from "../../components/StatCard";
 import Button from "../../components/buttons/Button";
 import ItemGap from "../../components/ItemGap";
@@ -13,48 +12,53 @@ import RiderRow from "./component/RiderRow";
 import { useNavigate } from "react-router-dom";
 import Loader from "../../components/Loader";
 import { fetchRidersManagement } from "../../queries/rider/riderManagement";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import images from "../../constants/images";
+import { toast } from "react-toastify";
+import { createAdmin } from "../../queries/admin/adminManagement";
 
 const RiderManagement: React.FC = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  const { data: riders, isLoading, error } = useQuery({
-    queryKey: ['riders'],
-    queryFn: fetchRidersManagement,
-    refetchOnWindowFocus: false,
-    retry: 1,
-  })
-
-
-  // const [selectedDate, setSelectedDate] = useState('7'); // Default to "This week"
+  const [modalMode, setModalMode] = useState<'add'>('add');
+  const [selectedRider, setSelectedRider] = useState(null);
   const [selectedRiderStatus, setSelectedRiderStatus] = useState('all');
   const [selectedTier, setSelectedTier] = useState('all');
   const [selectedOnlineStatus, setSelectedOnlineStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Filter riders based on all criteria
+  const { data: riders, isLoading, error,refetch } = useQuery({
+    queryKey: ['riders'],
+    queryFn: fetchRidersManagement,
+    refetchOnWindowFocus: false,
+    retry: 1,
+  });
+
+  const { mutate: createRiderMutation, isPending: creating } = useMutation({
+    mutationFn: (formData: FormData) => createAdmin(formData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['riders'] });
+      toast.success('Rider added successfully');
+      setIsModalOpen(false);
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to add rider');
+    },
+  });
+
   const filteredRiders = useMemo(() => {
     if (!riders) return [];
-
-    return riders.data.users.filter(rider => {
+    return riders.data.users.filter((rider) => {
       const matchesRiderStatus = selectedRiderStatus === 'all' || rider.is_active === Number(selectedRiderStatus);
-      // const matchesTier = selectedTier === 'all' || rider.tier.toLowerCase() === selectedTier.toLowerCase();
       const matchesOnlineStatus = selectedOnlineStatus === 'all' || rider.is_active === Number(selectedOnlineStatus);
-      const matchesSearch = rider.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      const matchesSearch =
+        rider.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         rider.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
         rider.phone.toLowerCase().includes(searchQuery.toLowerCase());
-// && matchesTier
-      return matchesRiderStatus  && matchesOnlineStatus && matchesSearch;
+      return matchesRiderStatus && matchesOnlineStatus && matchesSearch;
     });
-  }, [selectedRiderStatus, selectedTier, selectedOnlineStatus, searchQuery,riders]);
-
-  const handleDateChange = (value: string) => {
-    // setSelectedDate(value);
-    console.log(value)
-    // Here you would typically fetch data for the selected date range
-  };
+  }, [selectedRiderStatus, selectedTier, selectedOnlineStatus, searchQuery, riders]);
 
   const handleRiderStatusChange = (status: string) => {
     setSelectedRiderStatus(status);
@@ -68,19 +72,22 @@ const RiderManagement: React.FC = () => {
     setSelectedOnlineStatus(status);
   };
 
-  const handleBulkAction = (action: string) => {
-    console.log("Bulk action selected:", action);
-    // Implement bulk actions here
-  };
-
   const handleSearch = (query: string) => {
     setSearchQuery(query);
   };
 
-  const handleAddUser = (values: any) => {
-    console.log("New user data:", values);
-    setIsModalOpen(false);
+  const handleAddRider = (formData: FormData) => {
+    if (modalMode === 'add') {
+      createRiderMutation(formData);
+    }
   };
+
+  const openAddModal = () => {
+    setSelectedRider(null);
+    setModalMode('add');
+    setIsModalOpen(true);
+  };
+
   const riderStats = [
     {
       title: "Total Rider",
@@ -112,9 +119,11 @@ const RiderManagement: React.FC = () => {
       textColor: "white",
       statChangeColor: "text-green-500",
     },
-  ]
+  ];
+
   if (isLoading) return <Loader />;
   if (error) return <div className="p-8 text-center">Error loading riders</div>;
+
   return (
     <div className="">
       <div className="bg-white">
@@ -127,7 +136,7 @@ const RiderManagement: React.FC = () => {
               </Button>
               <Dropdown
                 options={DateDropOptions}
-                onChange={handleDateChange}
+                onChange={(value) => console.log("Selected date range:", value)}
                 placeholder="This Week"
                 position="right-0"
               />
@@ -161,16 +170,10 @@ const RiderManagement: React.FC = () => {
               placeholder="Status"
               position="left-0"
             />
-            <Dropdown
-              options={bulkOptions}
-              onChange={handleBulkAction}
-              placeholder="Bulk Actions"
-              position="left-0"
-            />
           </ItemGap>
           <ItemGap>
-            <Button handleFunction={() => setIsModalOpen(true)}>
-              Add New User
+            <Button handleFunction={openAddModal}>
+              Add New Rider
             </Button>
             <SearchFilter handleFunction={handleSearch} />
           </ItemGap>
@@ -179,15 +182,21 @@ const RiderManagement: React.FC = () => {
         <TableCan
           heading="All Riders"
           showHeading={true}
-          headerTr={['Rider Name', 'Email', 'Phone No', 'Wallet Balance', 'Status', 'tier', 'Actions', 'Other']}
+          headerTr={['Rider Name', 'Email', 'Phone No', 'Wallet Balance', 'Status', 'Tier', 'Actions']}
           dataTr={filteredRiders}
           TrName={RiderRow}
+          TrPropsName={{
+            handlerefetch:refetch
+          }}
         />
 
         <AddUserModal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          onSubmit={handleAddUser}
+          onSubmit={handleAddRider}
+          mode={'add'}
+          isPending={creating}
+          initialValues={selectedRider}
         />
       </div>
     </div>
